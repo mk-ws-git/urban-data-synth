@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/audio/recorder.ts","./src/audio/synth.ts","./src/data/sources.ts","./src/data/types.ts","./src/engine/mapping.ts","./src/engine/scales.ts","./src/engine/scheduler.ts","./src/ui/mappingmatrix.tsx","./src/ui/visualizer.tsx"],"errors":true,"version":"5.9.3"}

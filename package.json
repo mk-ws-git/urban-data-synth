@@ -1,0 +1,29 @@
+{
+  "name": "urban-data-synth",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A browser synthesizer that turns open urban and climate data into sound.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=urban-data-synth"
+  },
+  "dependencies": {
+    "d3-scale": "^4.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tone": "^14.7.77"
+  },
+  "devDependencies": {
+    "@types/d3-scale": "^4.0.8",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "wrangler": "^3.90.0"
+  }
+}
