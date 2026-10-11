@@ -130,7 +130,7 @@ export default function App() {
           <h1>Urban Data Synth</h1>
           <div className="sub">Open climate and air-quality data, played as sound.</div>
         </div>
-        <a href="https://github.com/" target="_blank" rel="noreferrer">
+        <a href="https://github.com/mk-ws-git/urban-data-synth" target="_blank" rel="noreferrer">
           source
         </a>
       </div>
