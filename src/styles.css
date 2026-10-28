@@ -97,5 +97,30 @@ label { font-size: 13px; color: var(--text-dim); display: inline-flex; align-ite
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend .s { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 
+.locbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 14px 0 0; }
+.locsearch { position: relative; flex: 1; min-width: 220px; }
+.locsearch input {
+  width: 100%; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 9px 12px;
+}
+.locsearch input::placeholder { color: var(--text-faint); }
+.loc-results {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+  margin: 0; padding: 4px; list-style: none;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px;
+  max-height: 240px; overflow: auto;
+}
+.loc-results li { display: block; }
+.loc-results button {
+  width: 100%; text-align: left; background: transparent; border: none;
+  padding: 8px 10px; border-radius: 6px; font-size: 13px; color: var(--text);
+}
+.loc-results button:hover { background: #26262b; }
+.loc-hint { padding: 8px 10px; font-size: 12px; color: var(--text-faint); }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { padding: 6px 11px; font-size: 12px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); }
+.chip.active { background: var(--accent); color: #0e0e10; border-color: var(--accent); }
+
 .section-label { font-size: 12px; color: var(--text-faint); margin: 22px 0 6px; }
 .status { font-size: 12px; color: var(--text-faint); min-height: 16px; }

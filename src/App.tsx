@@ -8,6 +8,7 @@ import { Recorder } from "./audio/recorder";
 import { Scheduler } from "./engine/scheduler";
 import { Visualizer } from "./ui/Visualizer";
 import { MappingMatrix as MatrixUI } from "./ui/MappingMatrix";
+import { LocationSearch } from "./ui/LocationSearch";
 
 const CITIES: Record<string, { latitude: number; longitude: number }> = {
   London: { latitude: 51.51, longitude: -0.13 },
@@ -15,6 +16,8 @@ const CITIES: Record<string, { latitude: number; longitude: number }> = {
   Tokyo: { latitude: 35.68, longitude: 139.69 },
   Reykjavík: { latitude: 64.15, longitude: -21.94 },
   Nairobi: { latitude: -1.29, longitude: 36.82 },
+  Sydney: { latitude: -33.87, longitude: 151.21 },
+  Delhi: { latitude: 28.61, longitude: 77.21 },
 };
 
 const DEFAULT_MATRIX: MappingMatrix = [
@@ -27,7 +30,8 @@ const DEFAULT_MATRIX: MappingMatrix = [
 ];
 
 export default function App() {
-  const [city, setCity] = useState<string>("London");
+  const [geo, setGeo] = useState<{ latitude: number; longitude: number }>(CITIES.London);
+  const [place, setPlace] = useState<string>("London");
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [matrix, setMatrix] = useState<MappingMatrix>(DEFAULT_MATRIX);
   const [scale, setScale] = useState<ScaleName>("minorPentatonic");
@@ -44,19 +48,19 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    setStatus(`Loading ${city}…`);
+    setStatus(`Loading ${place}…`);
     setDataset(null);
-    fetchDataset(CITIES[city], { pastDays: 1, forecastDays: 2 })
+    fetchDataset(geo, { pastDays: 1, forecastDays: 2 })
       .then((d) => {
         if (cancelled) return;
         setDataset(d);
-        setStatus(`${d.channels.length} channels · ${d.times.length} hours`);
+        setStatus(`${place} · ${d.channels.length} channels · ${d.times.length} hours`);
       })
       .catch((e) => !cancelled && setStatus(`Error: ${e.message}`));
     return () => {
       cancelled = true;
     };
-  }, [city]);
+  }, [geo, place]);
 
   const activeChannels = useMemo(() => {
     if (!dataset) return [];
@@ -79,7 +83,8 @@ export default function App() {
     schedRef.current?.stop();
     if (recRef.current) {
       if (download) {
-        const name = await recRef.current.stopAndDownload(`${city}-${scale}`);
+        const slug = place.split(",")[0].trim().replace(/\s+/g, "-").toLowerCase();
+        const name = await recRef.current.stopAndDownload(`${slug}-${scale}`);
         setStatus(`Downloaded ${name}`);
       }
       recRef.current.dispose();
@@ -88,7 +93,7 @@ export default function App() {
     recordingRef.current = false;
     setPlaying(false);
     setHead(-1);
-  }, [city, scale]);
+  }, [place, scale]);
 
   const start = useCallback(
     async (record: boolean) => {
@@ -137,6 +142,30 @@ export default function App() {
 
       <Visualizer channels={activeChannels} length={length} head={head} />
 
+      <div className="locbar">
+        <LocationSearch
+          current={place}
+          onSelect={(p) => {
+            setGeo({ latitude: p.latitude, longitude: p.longitude });
+            setPlace(p.label);
+          }}
+        />
+        <div className="presets">
+          {Object.keys(CITIES).map((c) => (
+            <button
+              key={c}
+              className={place === c ? "chip active" : "chip"}
+              onClick={() => {
+                setGeo(CITIES[c]);
+                setPlace(c);
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="transport">
         {!playing ? (
           <button className="primary" disabled={!dataset} onClick={() => start(false)}>
@@ -149,14 +178,6 @@ export default function App() {
           {mode === "timeline" ? "Record + download" : "Record (stop to save)"}
         </button>
         <div className="grid-controls" style={{ marginLeft: "auto" }}>
-          <label>
-            City
-            <select value={city} onChange={(e) => setCity(e.target.value)}>
-              {Object.keys(CITIES).map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
           <label>
             Scale
             <select value={scale} onChange={(e) => setScale(e.target.value as ScaleName)}>
