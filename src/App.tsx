@@ -147,7 +147,7 @@ export default function App() {
     <div className="page">
       <div className="panel">
         <div className="panel-head">
-          <div className="brand">URBAN DATA SYNTH</div>
+          <div className="brand">Urban Data Synth</div>
           <div className="readout">{status || place}</div>
           <a className="src" href="https://github.com/mk-ws-git/urban-data-synth" target="_blank" rel="noreferrer">
             SRC
@@ -161,29 +161,29 @@ export default function App() {
         <div className="module transport">
           {!playing ? (
             <button className="btn-play" disabled={!dataset} onClick={() => start(false)}>
-              PLAY
+              Play
             </button>
           ) : (
             <button className="btn-play" onClick={() => finish(recordingRef.current)}>
-              STOP
+              Stop
             </button>
           )}
           <button className="btn-rec" disabled={!dataset || playing} onClick={() => start(true)}>
             <span className="rec-dot" />
-            {mode === "timeline" ? "REC + SAVE" : "REC"}
+            {mode === "timeline" ? "Rec + save" : "Rec"}
           </button>
 
           <div className="seg" role="group" aria-label="Playback mode">
             <button className={mode === "timeline" ? "on" : ""} onClick={() => setMode("timeline")}>
-              TIMELINE
+              Timeline
             </button>
             <button className={mode === "live" ? "on" : ""} onClick={() => setMode("live")}>
-              LIVE
+              Live
             </button>
           </div>
 
           <div className="ctl">
-            SCALE
+            Scale
             <select value={scale} onChange={(e) => setScale(e.target.value as ScaleName)}>
               {Object.keys(SCALES).map((s) => (
                 <option key={s} value={s}>
@@ -194,7 +194,7 @@ export default function App() {
           </div>
 
           <div className="ctl" style={{ marginLeft: "auto" }}>
-            TEMPO
+            Tempo
             <input
               type="range"
               min={60}
@@ -203,7 +203,7 @@ export default function App() {
               value={bpm}
               onChange={(e) => setBpm(Number(e.target.value))}
             />
-            <span className="lcd">{bpm}</span>
+            <span className="tempo-val">{bpm}</span>
           </div>
         </div>
 
@@ -215,9 +215,9 @@ export default function App() {
                 key={p.id}
                 className={presetId === p.id ? "preset on" : "preset"}
                 onClick={() => applyPreset(p.id)}
+                title={p.blurb}
               >
-                <span className="p-name">{p.label}</span>
-                <span className="p-blurb">{p.blurb}</span>
+                {p.label}
               </button>
             ))}
           </div>
@@ -249,7 +249,7 @@ export default function App() {
         </div>
 
         <button className="patch-toggle" onClick={() => setShowPatch((v) => !v)}>
-          {showPatch ? "▾ PATCH BAY" : "▸ PATCH BAY — route data to sound"}
+          {showPatch ? "▾ Patch bay" : "▸ Patch bay — route data to sound"}
         </button>
 
         {showPatch && dataset && (

@@ -26,30 +26,11 @@ export function Visualizer({ channels, length, head }: Props) {
       cv.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
-
-      // scope grid
-      ctx.strokeStyle = "#243019";
-      ctx.lineWidth = 1;
-      for (let gx = 0; gx <= 8; gx++) {
-        const x = (w / 8) * gx;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
-      for (let gy = 0; gy <= 4; gy++) {
-        const y = (h / 4) * gy;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
-
       if (length < 2 || channels.length === 0) return;
 
       const pad = 8;
       const dx = (w - pad * 2) / (length - 1);
-      const traces = ["#9ae66e", "#6fd0c0", "#c9d96a", "#78b36a", "#5c9a8f", "#8f9a5c"];
+      const shades = ["#ededed", "#aeaeae", "#7c7c7c", "#cfcfcf", "#949494", "#5e5e5e"];
 
       channels.forEach((c, ci) => {
         ctx.beginPath();
@@ -58,28 +39,19 @@ export function Visualizer({ channels, length, head }: Props) {
           const x = pad + i * dx;
           i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         }
-        const col = traces[ci % traces.length];
-        ctx.strokeStyle = col;
-        ctx.lineWidth = ci === 0 ? 1.8 : 1.2;
-        ctx.globalAlpha = ci === 0 ? 1 : 0.7;
-        ctx.shadowColor = col;
-        ctx.shadowBlur = ci === 0 ? 6 : 2;
+        ctx.strokeStyle = shades[ci % shades.length];
+        ctx.lineWidth = ci === 0 ? 1.6 : 1;
         ctx.stroke();
       });
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
 
       if (head >= 0) {
         const x = pad + head * dx;
-        ctx.strokeStyle = "#f4f1e6";
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = "#f4f1e6";
-        ctx.shadowBlur = 6;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
         ctx.stroke();
-        ctx.shadowBlur = 0;
       }
     };
 

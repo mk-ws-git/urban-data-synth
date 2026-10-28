@@ -21,7 +21,7 @@ const r = (channelId: string, param: MappingMatrix[number]["param"], invert = fa
 export const PRESETS: Preset[] = [
   {
     id: "signature",
-    label: "Signature",
+    label: "Climate",
     blurb: "The full weather, mapped to sound",
     scale: "minorPentatonic",
     bpm: 100,
@@ -36,7 +36,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: "ambient",
-    label: "Ambient",
+    label: "Drift",
     blurb: "Slow, spacious, calm",
     scale: "majorPentatonic",
     bpm: 76,
@@ -49,7 +49,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: "storm",
-    label: "Storm watch",
+    label: "Storm",
     blurb: "Wind and rain drive the energy",
     scale: "minorPentatonic",
     bpm: 124,
@@ -63,7 +63,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: "air",
-    label: "Clean vs polluted",
+    label: "Haze",
     blurb: "Air quality shapes the tone",
     scale: "dorian",
     bpm: 100,

@@ -3,13 +3,31 @@ import type { Channel, Dataset, GeoPoint } from "./types";
 
 // --- normalization -------------------------------------------------------
 
-function normalize(values: number[]): number[] {
-  const clean = values.map((v) => (Number.isFinite(v) ? v : 0));
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
-  if (min === max) return clean.map(() => 0.5);
+// Physically meaningful ranges. Blending the absolute range with each series'
+// own range is what makes changing location actually change the sound: a warm
+// city sits higher than a cold one, while a single day keeps musical movement.
+const DOMAINS: Record<string, [number, number]> = {
+  temperature_2m: [-20, 45],
+  relative_humidity_2m: [0, 100],
+  wind_speed_10m: [0, 60],
+  precipitation: [0, 15],
+  surface_pressure: [980, 1040],
+  cloud_cover: [0, 100],
+  uv_index: [0, 12],
+  pm2_5: [0, 150],
+  pm10: [0, 200],
+  nitrogen_dioxide: [0, 150],
+  ozone: [0, 240],
+  wave_height: [0, 10],
+  swell_wave_period: [0, 20],
+};
+
+function localNorm(values: number[]): number[] {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return values.map(() => 0.5);
   const s = scaleLinear().domain([min, max]).range([0, 1]).clamp(true);
-  return clean.map((v) => s(v));
+  return values.map((v) => s(v));
 }
 
 function channel(
@@ -19,7 +37,16 @@ function channel(
   source: string,
   raw: number[],
 ): Channel {
-  return { id, label, unit, source, raw, normalized: normalize(raw) };
+  const clean = raw.map((v) => (Number.isFinite(v) ? v : 0));
+  const local = localNorm(clean);
+  const dom = DOMAINS[id];
+  const normalized = dom
+    ? clean.map((v, i) => {
+        const abs = Math.max(0, Math.min(1, (v - dom[0]) / (dom[1] - dom[0])));
+        return 0.5 * local[i] + 0.5 * abs;
+      })
+    : local;
+  return { id, label, unit, source, raw: clean, normalized };
 }
 
 interface FetchOpts {
