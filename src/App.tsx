@@ -7,7 +7,7 @@ import { PRESETS, DEFAULT_PRESET } from "./engine/presets";
 import { Synth } from "./audio/synth";
 import { Recorder } from "./audio/recorder";
 import { Scheduler } from "./engine/scheduler";
-import { Visualizer } from "./ui/Visualizer";
+import { Visualizer, type VizView } from "./ui/Visualizer";
 import { MappingMatrix as MatrixUI } from "./ui/MappingMatrix";
 import { LocationSearch } from "./ui/LocationSearch";
 
@@ -32,6 +32,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [head, setHead] = useState(-1);
   const [showPatch, setShowPatch] = useState(false);
+  const [view, setView] = useState<VizView>("lines");
   const [status, setStatus] = useState("");
 
   const synthRef = useRef<Synth | null>(null);
@@ -155,7 +156,16 @@ export default function App() {
         </div>
 
         <div className="screen">
-          <Visualizer channels={activeChannels} length={length} head={head} />
+          <Visualizer channels={activeChannels} length={length} head={head} view={view} />
+        </div>
+        <div className="viewbar">
+          <div className="seg sm" role="group" aria-label="Visualization view">
+            {(["lines", "stacked", "bars"] as VizView[]).map((v) => (
+              <button key={v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="module transport">
