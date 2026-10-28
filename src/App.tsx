@@ -3,6 +3,7 @@ import { fetchDataset } from "./data/sources";
 import type { Dataset, MappingMatrix, SoundParam } from "./data/types";
 import { createResolver } from "./engine/mapping";
 import { SCALES, type ScaleName } from "./engine/scales";
+import { PRESETS, DEFAULT_PRESET } from "./engine/presets";
 import { Synth } from "./audio/synth";
 import { Recorder } from "./audio/recorder";
 import { Scheduler } from "./engine/scheduler";
@@ -17,28 +18,20 @@ const CITIES: Record<string, { latitude: number; longitude: number }> = {
   Reykjavík: { latitude: 64.15, longitude: -21.94 },
   Nairobi: { latitude: -1.29, longitude: 36.82 },
   Sydney: { latitude: -33.87, longitude: 151.21 },
-  Delhi: { latitude: 28.61, longitude: 77.21 },
 };
-
-const DEFAULT_MATRIX: MappingMatrix = [
-  { channelId: "temperature_2m", param: "pitch", invert: false },
-  { channelId: "wind_speed_10m", param: "density", invert: false },
-  { channelId: "relative_humidity_2m", param: "brightness", invert: false },
-  { channelId: "pm2_5", param: "loudness", invert: false },
-  { channelId: "surface_pressure", param: "pan", invert: false },
-  { channelId: "precipitation", param: "reverb", invert: false },
-];
 
 export default function App() {
   const [geo, setGeo] = useState<{ latitude: number; longitude: number }>(CITIES.London);
   const [place, setPlace] = useState<string>("London");
   const [dataset, setDataset] = useState<Dataset | null>(null);
-  const [matrix, setMatrix] = useState<MappingMatrix>(DEFAULT_MATRIX);
-  const [scale, setScale] = useState<ScaleName>("minorPentatonic");
-  const [bpm, setBpm] = useState(100);
+  const [matrix, setMatrix] = useState<MappingMatrix>(DEFAULT_PRESET.matrix);
+  const [presetId, setPresetId] = useState<string>(DEFAULT_PRESET.id);
+  const [scale, setScale] = useState<ScaleName>(DEFAULT_PRESET.scale);
+  const [bpm, setBpm] = useState(DEFAULT_PRESET.bpm);
   const [mode, setMode] = useState<"timeline" | "live">("timeline");
   const [playing, setPlaying] = useState(false);
   const [head, setHead] = useState(-1);
+  const [showPatch, setShowPatch] = useState(false);
   const [status, setStatus] = useState("");
 
   const synthRef = useRef<Synth | null>(null);
@@ -46,9 +39,22 @@ export default function App() {
   const recRef = useRef<Recorder | null>(null);
   const recordingRef = useRef(false);
 
+  // Casual-first: try to start from the visitor's own location.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setPlace("Your location");
+      },
+      () => {},
+      { timeout: 8000 },
+    );
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    setStatus(`Loading ${place}…`);
+    setStatus(`loading ${place}…`);
     setDataset(null);
     fetchDataset(geo, { pastDays: 1, forecastDays: 2 })
       .then((d) => {
@@ -56,7 +62,7 @@ export default function App() {
         setDataset(d);
         setStatus(`${place} · ${d.channels.length} channels · ${d.times.length} hours`);
       })
-      .catch((e) => !cancelled && setStatus(`Error: ${e.message}`));
+      .catch((e) => !cancelled && setStatus(`error: ${e.message}`));
     return () => {
       cancelled = true;
     };
@@ -69,7 +75,17 @@ export default function App() {
     return active.length ? active : dataset.channels.slice(0, 4);
   }, [dataset, matrix]);
 
+  const applyPreset = useCallback((id: string) => {
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    setMatrix(p.matrix);
+    setScale(p.scale);
+    setBpm(p.bpm);
+    setPresetId(id);
+  }, []);
+
   const cycle = useCallback((channelId: string, param: SoundParam) => {
+    setPresetId("custom");
     setMatrix((prev) => {
       const existing = prev.find((r) => r.channelId === channelId && r.param === param);
       if (!existing) return [...prev, { channelId, param, invert: false }];
@@ -79,21 +95,24 @@ export default function App() {
     });
   }, []);
 
-  const finish = useCallback(async (download: boolean) => {
-    schedRef.current?.stop();
-    if (recRef.current) {
-      if (download) {
-        const slug = place.split(",")[0].trim().replace(/\s+/g, "-").toLowerCase();
-        const name = await recRef.current.stopAndDownload(`${slug}-${scale}`);
-        setStatus(`Downloaded ${name}`);
+  const finish = useCallback(
+    async (download: boolean) => {
+      schedRef.current?.stop();
+      if (recRef.current) {
+        if (download) {
+          const slug = place.split(",")[0].trim().replace(/\s+/g, "-").toLowerCase();
+          const name = await recRef.current.stopAndDownload(`${slug}-${scale}`);
+          setStatus(`downloaded ${name}`);
+        }
+        recRef.current.dispose();
+        recRef.current = null;
       }
-      recRef.current.dispose();
-      recRef.current = null;
-    }
-    recordingRef.current = false;
-    setPlaying(false);
-    setHead(-1);
-  }, [place, scale]);
+      recordingRef.current = false;
+      setPlaying(false);
+      setHead(-1);
+    },
+    [place, scale],
+  );
 
   const start = useCallback(
     async (record: boolean) => {
@@ -109,15 +128,11 @@ export default function App() {
         recordingRef.current = true;
       }
       setPlaying(true);
-      setStatus(record ? "Recording…" : "Playing…");
+      setStatus(record ? "recording…" : "playing…");
 
       if (mode === "timeline") {
-        await sched.playTimeline(
-          dataset.channels,
-          dataset.times.length,
-          bpm,
-          setHead,
-          () => void finish(recordingRef.current),
+        await sched.playTimeline(dataset.channels, dataset.times.length, bpm, setHead, () =>
+          void finish(recordingRef.current),
         );
       } else {
         await sched.startLive(dataset.channels, dataset.times.length - 1);
@@ -129,57 +144,46 @@ export default function App() {
   const length = dataset?.times.length ?? 0;
 
   return (
-    <div className="app">
-      <div className="header">
-        <div>
-          <h1>Urban Data Synth</h1>
-          <div className="sub">Open climate and air-quality data, played as sound.</div>
+    <div className="page">
+      <div className="panel">
+        <div className="panel-head">
+          <div className="brand">URBAN DATA SYNTH</div>
+          <div className="readout">{status || place}</div>
+          <a className="src" href="https://github.com/mk-ws-git/urban-data-synth" target="_blank" rel="noreferrer">
+            SRC
+          </a>
         </div>
-        <a href="https://github.com/mk-ws-git/urban-data-synth" target="_blank" rel="noreferrer">
-          source
-        </a>
-      </div>
 
-      <Visualizer channels={activeChannels} length={length} head={head} />
+        <div className="screen">
+          <Visualizer channels={activeChannels} length={length} head={head} />
+        </div>
 
-      <div className="locbar">
-        <LocationSearch
-          current={place}
-          onSelect={(p) => {
-            setGeo({ latitude: p.latitude, longitude: p.longitude });
-            setPlace(p.label);
-          }}
-        />
-        <div className="presets">
-          {Object.keys(CITIES).map((c) => (
-            <button
-              key={c}
-              className={place === c ? "chip active" : "chip"}
-              onClick={() => {
-                setGeo(CITIES[c]);
-                setPlace(c);
-              }}
-            >
-              {c}
+        <div className="module transport">
+          {!playing ? (
+            <button className="btn-play" disabled={!dataset} onClick={() => start(false)}>
+              PLAY
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="transport">
-        {!playing ? (
-          <button className="primary" disabled={!dataset} onClick={() => start(false)}>
-            Play
+          ) : (
+            <button className="btn-play" onClick={() => finish(recordingRef.current)}>
+              STOP
+            </button>
+          )}
+          <button className="btn-rec" disabled={!dataset || playing} onClick={() => start(true)}>
+            <span className="rec-dot" />
+            {mode === "timeline" ? "REC + SAVE" : "REC"}
           </button>
-        ) : (
-          <button onClick={() => finish(recordingRef.current)}>Stop</button>
-        )}
-        <button disabled={!dataset || playing} onClick={() => start(true)}>
-          {mode === "timeline" ? "Record + download" : "Record (stop to save)"}
-        </button>
-        <div className="grid-controls" style={{ marginLeft: "auto" }}>
-          <label>
-            Scale
+
+          <div className="seg" role="group" aria-label="Playback mode">
+            <button className={mode === "timeline" ? "on" : ""} onClick={() => setMode("timeline")}>
+              TIMELINE
+            </button>
+            <button className={mode === "live" ? "on" : ""} onClick={() => setMode("live")}>
+              LIVE
+            </button>
+          </div>
+
+          <div className="ctl">
+            SCALE
             <select value={scale} onChange={(e) => setScale(e.target.value as ScaleName)}>
               {Object.keys(SCALES).map((s) => (
                 <option key={s} value={s}>
@@ -187,16 +191,10 @@ export default function App() {
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            Mode
-            <select value={mode} onChange={(e) => setMode(e.target.value as "timeline" | "live")}>
-              <option value="timeline">Timeline</option>
-              <option value="live">Live</option>
-            </select>
-          </label>
-          <label>
-            Tempo {bpm}
+          </div>
+
+          <div className="ctl" style={{ marginLeft: "auto" }}>
+            TEMPO
             <input
               type="range"
               min={60}
@@ -205,19 +203,70 @@ export default function App() {
               value={bpm}
               onChange={(e) => setBpm(Number(e.target.value))}
             />
-          </label>
+            <span className="lcd">{bpm}</span>
+          </div>
         </div>
-      </div>
 
-      <div className="status">{status}</div>
+        <div className="module">
+          <div className="mod-label">Presets</div>
+          <div className="presets">
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                className={presetId === p.id ? "preset on" : "preset"}
+                onClick={() => applyPreset(p.id)}
+              >
+                <span className="p-name">{p.label}</span>
+                <span className="p-blurb">{p.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <div className="section-label">Routing · click to patch a channel to a parameter (off → on → inverted)</div>
-      {dataset && <MatrixUI channels={dataset.channels} matrix={matrix} onCycle={cycle} />}
-      <div className="legend">
-        <span><span className="s dot on" style={{ background: "var(--accent)" }} />active</span>
-        <span><span className="s dot inv" style={{ border: "1.5px solid var(--accent)" }} />inverted</span>
-        <span><span className="s dot off" />open</span>
+        <div className="module">
+          <div className="mod-label">Location</div>
+          <div className="locrow">
+            <LocationSearch
+              current={place}
+              onSelect={(p) => {
+                setGeo({ latitude: p.latitude, longitude: p.longitude });
+                setPlace(p.label);
+              }}
+            />
+            {Object.keys(CITIES).map((c) => (
+              <button
+                key={c}
+                className={place === c ? "chip active" : "chip"}
+                onClick={() => {
+                  setGeo(CITIES[c]);
+                  setPlace(c);
+                }}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button className="patch-toggle" onClick={() => setShowPatch((v) => !v)}>
+          {showPatch ? "▾ PATCH BAY" : "▸ PATCH BAY — route data to sound"}
+        </button>
+
+        {showPatch && dataset && (
+          <div className="module">
+            <div className="mod-label">Patch · click a cell: off → on → inverted</div>
+            <MatrixUI channels={dataset.channels} matrix={matrix} onCycle={cycle} />
+            <div className="legend">
+              <span><span className="s dot on" style={{ background: "var(--accent)" }} />active</span>
+              <span><span className="s dot inv" style={{ border: "1.5px solid var(--accent)" }} />inverted</span>
+              <span><span className="s dot off" />open</span>
+            </div>
+          </div>
+        )}
+
+        <div className="status">{status}</div>
       </div>
+      <div className="footnote">live climate + air-quality data · open-meteo</div>
     </div>
   );
 }
