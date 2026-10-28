@@ -39,6 +39,17 @@ export default function App() {
   const schedRef = useRef<Scheduler | null>(null);
   const recRef = useRef<Recorder | null>(null);
   const recordingRef = useRef(false);
+  const resolverRef = useRef<ReturnType<typeof createResolver> | null>(null);
+
+  // Keep the resolver current so preset / scale changes update the sound live.
+  useEffect(() => {
+    resolverRef.current = createResolver(matrix, { scale });
+  }, [matrix, scale]);
+
+  // Live tempo updates (slider + preset bpm) while playing.
+  useEffect(() => {
+    schedRef.current?.setTempo(bpm);
+  }, [bpm]);
 
   // Casual-first: try to start from the visitor's own location.
   useEffect(() => {
@@ -119,8 +130,8 @@ export default function App() {
     async (record: boolean) => {
       if (!dataset || dataset.times.length === 0) return;
       if (!synthRef.current) synthRef.current = new Synth();
-      const resolver = createResolver(matrix, { scale });
-      const sched = new Scheduler(synthRef.current, resolver);
+      resolverRef.current = createResolver(matrix, { scale });
+      const sched = new Scheduler(synthRef.current, (byId, i) => resolverRef.current!(byId, i));
       schedRef.current = sched;
 
       if (record) {

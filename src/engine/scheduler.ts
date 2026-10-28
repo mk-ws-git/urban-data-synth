@@ -58,6 +58,10 @@ export class Scheduler {
     this.liveTimer = setInterval(tick, intervalMs);
   }
 
+  setTempo(bpm: number) {
+    Tone.Transport.bpm.value = bpm;
+  }
+
   stop() {
     if (this.repeatId !== null) {
       Tone.Transport.clear(this.repeatId);
