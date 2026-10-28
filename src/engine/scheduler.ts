@@ -1,6 +1,7 @@
 import * as Tone from "tone";
 import type { Channel, Voice } from "../data/types";
 import type { Synth } from "../audio/synth";
+import type { MidiOut } from "../audio/midi";
 
 type Resolver = (byId: Map<string, Channel>, index: number) => Voice;
 
@@ -11,8 +12,23 @@ function indexById(channels: Channel[]): Map<string, Channel> {
 export class Scheduler {
   private repeatId: number | null = null;
   private liveTimer: ReturnType<typeof setInterval> | null = null;
+  private midi: MidiOut | null = null;
+  private muted = false;
 
   constructor(private synth: Synth, private resolve: Resolver) {}
+
+  setMidi(m: MidiOut | null) {
+    this.midi = m;
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = muted;
+  }
+
+  private emit(v: Voice, time?: number) {
+    if (!this.muted) this.synth.play(v, time);
+    if (this.midi) this.midi.sendVoice(v);
+  }
 
   // Timeline: step through every hour as a composition.
   async playTimeline(
@@ -28,7 +44,7 @@ export class Scheduler {
     Tone.Transport.bpm.value = bpm;
     let i = 0;
     this.repeatId = Tone.Transport.scheduleRepeat((time) => {
-      this.synth.play(this.resolve(byId, i), time);
+      this.emit(this.resolve(byId, i), time);
       const at = i;
       Tone.Draw.schedule(() => onStep?.(at), time);
       i += 1;
@@ -51,7 +67,7 @@ export class Scheduler {
     this.stop();
     const byId = indexById(channels);
     const tick = () => {
-      this.synth.play(this.resolve(byId, index));
+      this.emit(this.resolve(byId, index));
       onTick?.();
     };
     tick();
@@ -71,5 +87,6 @@ export class Scheduler {
     Tone.Transport.position = 0;
     if (this.liveTimer) clearInterval(this.liveTimer);
     this.liveTimer = null;
+    this.midi?.allNotesOff();
   }
 }

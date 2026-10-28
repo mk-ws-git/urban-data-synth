@@ -6,6 +6,7 @@ import { SCALES, type ScaleName } from "./engine/scales";
 import { PRESETS, DEFAULT_PRESET } from "./engine/presets";
 import { Synth } from "./audio/synth";
 import { Recorder } from "./audio/recorder";
+import { MidiOut, type MidiPort } from "./audio/midi";
 import { Scheduler } from "./engine/scheduler";
 import { Visualizer, type VizView } from "./ui/Visualizer";
 import { MappingMatrix as MatrixUI } from "./ui/MappingMatrix";
@@ -33,7 +34,14 @@ export default function App() {
   const [head, setHead] = useState(-1);
   const [showPatch, setShowPatch] = useState(false);
   const [view, setView] = useState<VizView>("lines");
+  const [midiPorts, setMidiPorts] = useState<MidiPort[]>([]);
+  const [midiId, setMidiId] = useState("");
+  const [midiOn, setMidiOn] = useState(false);
+  const [midiMute, setMidiMute] = useState(false);
+  const [midiErr, setMidiErr] = useState("");
   const [status, setStatus] = useState("");
+
+  const midiRef = useRef<MidiOut | null>(null);
 
   const synthRef = useRef<Synth | null>(null);
   const schedRef = useRef<Scheduler | null>(null);
@@ -50,6 +58,37 @@ export default function App() {
   useEffect(() => {
     schedRef.current?.setTempo(bpm);
   }, [bpm]);
+
+  // Push MIDI routing / mute to a running scheduler live.
+  useEffect(() => {
+    schedRef.current?.setMidi(midiOn ? midiRef.current : null);
+  }, [midiOn]);
+  useEffect(() => {
+    schedRef.current?.setMuted(midiMute);
+  }, [midiMute]);
+
+  const enableMidi = useCallback(async () => {
+    try {
+      if (!midiRef.current) midiRef.current = new MidiOut();
+      const ports = await midiRef.current.init();
+      setMidiPorts(ports);
+      if (!ports.length) {
+        setMidiErr("No MIDI outputs found — open a DAW or a virtual port (IAC Driver on macOS, loopMIDI on Windows).");
+        return;
+      }
+      midiRef.current.select(ports[0].id);
+      setMidiId(ports[0].id);
+      setMidiOn(true);
+      setMidiErr("");
+    } catch (e) {
+      setMidiErr(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  const selectMidi = useCallback((id: string) => {
+    setMidiId(id);
+    midiRef.current?.select(id);
+  }, []);
 
   // Casual-first: try to start from the visitor's own location.
   useEffect(() => {
@@ -132,6 +171,8 @@ export default function App() {
       if (!synthRef.current) synthRef.current = new Synth();
       resolverRef.current = createResolver(matrix, { scale });
       const sched = new Scheduler(synthRef.current, (byId, i) => resolverRef.current!(byId, i));
+      sched.setMidi(midiOn ? midiRef.current : null);
+      sched.setMuted(midiMute);
       schedRef.current = sched;
 
       if (record) {
@@ -150,7 +191,7 @@ export default function App() {
         await sched.startLive(dataset.channels, dataset.times.length - 1);
       }
     },
-    [dataset, matrix, scale, mode, bpm, finish],
+    [dataset, matrix, scale, mode, bpm, midiOn, midiMute, finish],
   );
 
   const length = dataset?.times.length ?? 0;
@@ -267,6 +308,37 @@ export default function App() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="module">
+          <div className="mod-label">MIDI output</div>
+          {!MidiOut.supported() ? (
+            <div className="status">Web MIDI needs Chrome or Edge. Drive a DAW there.</div>
+          ) : !midiOn ? (
+            <div className="locrow">
+              <button onClick={enableMidi}>Enable MIDI output</button>
+              <span className="status">Send notes to Ableton, TouchDesigner, etc.</span>
+              {midiErr && <span className="status">{midiErr}</span>}
+            </div>
+          ) : (
+            <div className="locrow">
+              <div className="ctl">
+                Device
+                <select value={midiId} onChange={(e) => selectMidi(e.target.value)}>
+                  {midiPorts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="ctl" style={{ cursor: "pointer" }}>
+                <input type="checkbox" checked={midiMute} onChange={(e) => setMidiMute(e.target.checked)} />
+                Mute internal synth
+              </label>
+              <button onClick={() => setMidiOn(false)}>Disable</button>
+            </div>
+          )}
         </div>
 
         <button className="patch-toggle" onClick={() => setShowPatch((v) => !v)}>

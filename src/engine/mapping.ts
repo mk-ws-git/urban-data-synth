@@ -45,8 +45,10 @@ export function createResolver(matrix: MappingMatrix, cfg: MappingConfig) {
     const pan = paramValue("pan", matrix, byId, index) ?? 0.5;
     const reverb = paramValue("reverb", matrix, byId, index) ?? 0.35;
 
+    const midi = quantizeToScale(pitch, scale, rootMidi, octaves);
     return {
-      freq: midiToFreq(quantizeToScale(pitch, scale, rootMidi, octaves)),
+      midi,
+      freq: midiToFreq(midi),
       duration: 0.6 - density * 0.45, // denser data -> shorter, staccato notes
       velocity: loudness === null ? 0.7 : 0.2 + loudness * 0.8,
       filterCutoff: 500 + brightness * 7500, // 500..8000 Hz

@@ -51,6 +51,7 @@ export type MappingMatrix = Routing[];
 
 // Resolved per-step sound description handed to the synth.
 export interface Voice {
+  midi: number; // MIDI note number (for Web MIDI out)
   freq: number;
   duration: number;
   velocity: number;
